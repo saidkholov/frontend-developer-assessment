@@ -1,21 +1,32 @@
 import './App.css';
-import { Image, Alert, Button, Container, Row, Col, Form, Table, Stack } from 'react-bootstrap';
+import { Image, Alert, Button, Container, Row, Col, Form, Table, Stack, Badge } from 'react-bootstrap';
 import React, { useState, useEffect } from 'react';
-
-const axios = require('axios');
+import ErrorMessage from './components/ErrorMessage';
+import axiosInstance from './axiosInstance';
 
 const App = () => {
   const [description, setDescription] = useState('');
   const [items, setItems] = useState([]);
 
+  const [error, setError] = useState('');
+
   useEffect(() => {
-    // todo
+    getItems();
   }, []);
+
+  const handleAxiosError = (error) => {
+    console.error(error);
+    if (error.response) {
+      setError(error.response.data);
+    } else {
+      setError('Something went wrong. Please try again later.');
+    }
+  };
 
   const renderAddTodoItemContent = () => {
     return (
       <Container>
-        <h1>Add Item</h1>
+        <h1>Add New Item</h1>
         <Form.Group as={Row} className="mb-3" controlId="formAddTodoItem">
           <Form.Label column sm="2">
             Description
@@ -63,13 +74,17 @@ const App = () => {
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.id}>
+              <tr key={item.id} data-testid={`item-${item.id}`}>
                 <td>{item.id}</td>
                 <td>{item.description}</td>
                 <td>
-                  <Button variant="warning" size="sm" onClick={() => handleMarkAsComplete(item)}>
-                    Mark as completed
-                  </Button>
+                  {item.isCompleted ? (
+                    <Badge bg="success">Completed</Badge>
+                  ) : (
+                    <Button variant="warning" size="sm" onClick={() => handleMarkAsComplete(item)}>
+                      Mark as completed
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -80,22 +95,27 @@ const App = () => {
   };
 
   const handleDescriptionChange = (event) => {
-    // todo
+    setDescription(event.target.value);
   };
 
   async function getItems() {
     try {
-      alert('todo');
+      const result = await axiosInstance.get('/todoItems');
+      if (result) {
+        setItems(result.data);
+      }
     } catch (error) {
-      console.error(error);
+      handleAxiosError(error);
     }
   }
 
   async function handleAdd() {
     try {
-      alert('todo');
+      const result = await axiosInstance.post('/todoItems', { description, isCompleted: false });
+      setDescription('');
+      setItems((items) => items.concat(result.data));
     } catch (error) {
-      console.error(error);
+      handleAxiosError(error);
     }
   }
 
@@ -103,16 +123,18 @@ const App = () => {
     setDescription('');
   }
 
-  async function handleMarkAsComplete(item) {
+  async function handleMarkAsComplete(updatedItem) {
     try {
-      alert('todo');
+      const result = await axiosInstance.put(`/todoItems/${updatedItem.id}`, { ...updatedItem, isCompleted: true });
+      setItems((items) => items.map((item) => (item.id === updatedItem.id ? result.data : item)));
     } catch (error) {
-      console.error(error);
+      handleAxiosError(error);
     }
   }
 
   return (
     <div className="App">
+      {error && <ErrorMessage message={error} onClose={() => setError('')} />}
       <Container>
         <Row>
           <Col>
